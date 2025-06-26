@@ -74,7 +74,7 @@ const server = Bun.serve({
       return new Response("Websocket upgrade failed", { status: 400 });
     }
 
-    if (req.method === "POST" && url.pathname == secret_url) {
+    if (req.method === "POST" && url.pathname.includes(secret_url)) {
       const token = await req.text();
       server.publish("tokens", token);
       return Response.json({ strength: current_strength });
