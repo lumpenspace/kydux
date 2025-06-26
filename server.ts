@@ -43,8 +43,11 @@ if (args.secret_url_file) {
   const secret_url_file: string = args.secret_url_file.toString();
   secret_url = (await Bun.file(secret_url_file).text()).trim();
 } else {
-  secret_url = `/${crypto.randomBytes(32).toString("hex")}`;
+  // secret_url = `/${crypto.randomBytes(32).toString("hex")}`;
+  secret_url = "python-worker";
 }
+
+let current_strength = 0.0;
 
 const server = Bun.serve({
   async fetch(req, server) {
@@ -74,7 +77,7 @@ const server = Bun.serve({
     if (req.method === "POST" && url.pathname == secret_url) {
       const token = await req.text();
       server.publish("tokens", token);
-      return new Response();
+      return Response.json({ strength: current_strength });
     }
 
     return new Response("404 not found", { status: 404 });
@@ -83,7 +86,18 @@ const server = Bun.serve({
     open(ws) {
       ws.subscribe("tokens");
     },
-    message(ws, message) {},
+    message(ws, message) {
+      let data;
+      try {
+        data = JSON.parse(message.toString());
+      } catch {
+        console.error("invalid JSON: " + message);
+        return;
+      }
+      if (data.strength != null) {
+        current_strength = data.strength;
+      }
+    },
     close(ws) {
       ws.unsubscribe("tokens");
     },

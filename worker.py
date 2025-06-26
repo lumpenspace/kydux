@@ -43,7 +43,7 @@ class Generator:
         self.vector = ControlVector.import_gguf(CVEC)
 
         self.tokens: list[str] = self.tokenizer.tokenize(INITIAL_TEXT)
-        self.step = 0
+        self.raw_strength = 0.
 
         self.logfile = None
         if LOG:
@@ -54,8 +54,8 @@ class Generator:
     def next(self) -> Token:
         import torch
 
-        raw_strength = math.sin(self.step / SINUISOID_SCALE)
-        strength = (raw_strength + 1) / 2 * (MAX_CVEC - MIN_CVEC) + MIN_CVEC
+        # raw_strength = math.sin(self.step / SINUISOID_SCALE)
+        strength = (self.raw_strength + 1) / 2 * (MAX_CVEC - MIN_CVEC) + MIN_CVEC
         self.model.set_control(self.vector * strength)
 
         context = self.tokenizer.convert_tokens_to_string(self.tokens[-N_CONTEXT:])
@@ -75,23 +75,22 @@ class Generator:
 
         return Token(
             content=self.tokens[-1],
-            raw_strength=raw_strength,
+            raw_strength=self.raw_strength,
             strength=strength,
         )
 
 
 class MockGenerator:
     def __init__(self):
-        self.step = 0
+        self.raw_strength = 0.
 
     def next(self) -> Token:
         time.sleep(0.1)
-        raw_strength = math.sin(self.step / SINUISOID_SCALE)
-        self.step += 1
+        # raw_strength = math.sin(self.step / SINUISOID_SCALE)
         return Token(
             content=random.choice((" bing", " bong", ":-)")),
-            raw_strength=raw_strength,
-            strength=raw_strength,
+            raw_strength=self.raw_strength,
+            strength=self.raw_strength,
         )
 
 
@@ -105,7 +104,9 @@ if __name__ == "__main__":
         token = generator.next()
         message = json.dumps(dataclasses.asdict(token))
         try:
-            requests.post(SECRET_URL, data=message).raise_for_status()
+            resp = requests.post(SECRET_URL, data=message)
+            resp.raise_for_status()
+            generator.raw_strength = resp.json()["strength"]
         except requests.RequestException as e:
             print(message)
             print(e)
