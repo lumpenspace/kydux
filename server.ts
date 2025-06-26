@@ -44,7 +44,7 @@ if (args.secret_url_file) {
   secret_url = (await Bun.file(secret_url_file).text()).trim();
 } else {
   // secret_url = `/${crypto.randomBytes(32).toString("hex")}`;
-  secret_url = "python-worker";
+  secret_url = "/python-worker";
 }
 
 let current_strength = 0.0;
@@ -123,6 +123,8 @@ if (args.python) {
         ...process.env,
         ...env,
       },
+      stdout: "inherit",
+      stderr: "inherit",
       onExit: () => {
         server.stop(true);
       },
